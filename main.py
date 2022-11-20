@@ -19,9 +19,9 @@ Arguments:
 
         LOG_FILE - file to which operations are logged
 """
-
 import sys
 import os
+import hashlib
 import shutil
 import time
 import logging
@@ -55,6 +55,15 @@ logging.basicConfig(
 )
 
 logging.getLogger().addHandler(logging.StreamHandler(sys.stdout))
+
+
+def md5(file):
+    """ Generates md5 hash for file. """
+    hash_md5 = hashlib.md5()
+    with open(file, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
 
 
 def sync(source_dir, replica_dir, files, action):
@@ -133,6 +142,13 @@ def compare(source_dir, replica_dir):
     to_copy = dir_comparison.left_only
     to_overwrite = dir_comparison.diff_files + dir_comparison.funny_files
     to_delete = dir_comparison.right_only
+
+    same_files = dir_comparison.same_files
+
+    # Could be improved upon by running md5 check simultaneously and comparing
+    for file in same_files:
+        if md5(source_dir+file) != md5(replica_dir+file):
+            to_overwrite += file
 
     if (to_copy):
         sync(source_dir,
